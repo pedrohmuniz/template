@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-[name]
+  namespace: [name]
+spec:
+  accessModes:
+  - ReadWriteOnce
+  - ReadOnlyMany
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: nfs-dth
+  volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mkt-api
+  namespace: mkt-api
+  labels:
+    app: mkt-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mkt-api
+  template:
+    metadata:
+      labels:
+        app: mkt-api
+  spec:   
+    containers:
+    - image: registry.cursology.com.br/mkt/mkt-api-v1:latest
+      imagePullPolicy: Always
+      name: mkt-api        
+      livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+      readinessProbe:
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 5
+      securityContext:
+        privileged: true
+      ports:
+      - containerPort: 80
+        name: "app"
+        protocol: TCP        
+    imagePullSecrets:
+    - name: registry
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-mktapi
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: mkt-api
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-psql-secret
+type: Opaque
+data:
+  dbname: [base64]
+  username: [base64]
+  password: [base64]
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: [name]
+spec:
+  rules:
+  - host: [name url]
+    http:
+      paths:
+      - backend:
+          serviceName: svc-[name]
+          servicePort: 80
+status:
+  loadBalancer: {}
